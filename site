@@ -1,0 +1,441 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { 
+  Search, Plus, Calendar, Image as ImageIcon, X, Trash2, Edit2, 
+  Copy, CheckSquare, Square, SortDesc, SortAsc
+} from 'lucide-react';
+
+export default function CuradoriaSebo() {
+  const [abaAtiva, setAbaAtiva] = useState('todas');
+  const [buscaTexto, setBuscaTexto] = useState('');
+  const [buscaData, setBuscaData] = useState('');
+  const [ordenacao, setOrdenacao] = useState('mais_recentes'); // 'mais_recentes' ou 'mais_antigos'
+  
+  const [modalAberto, setModalAberto] = useState(false);
+  const [imagemAmpliada, setImagemAmpliada] = useState(null);
+  
+  // Usando localStorage para simular o banco de dados e manter as informações salvas
+  const [livros, setLivros] = useState(() => {
+    const salvos = localStorage.getItem('@seboCaramelos:livros');
+    return salvos ? JSON.parse(salvos) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('@seboCaramelos:livros', JSON.stringify(livros));
+  }, [livros]);
+
+  // Reseta a data sempre que trocar de aba
+  useEffect(() => {
+    setBuscaData('');
+  }, [abaAtiva]);
+
+  const [formLivro, setFormLivro] = useState({
+    id: null, titulo: '', autor: '', capa: 'Brochura', estado: '', 
+    valorSugerido: '', valorFinal: '', status: 'a_fazer', 
+    dataCuradoria: new Date().toISOString().split('T')[0],
+    textoPostagem: '', imagem: null, postado: false
+  });
+
+  const lidarComUploadImagem = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormLivro(prev => ({ ...prev, imagem: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const salvarLivro = (e) => {
+    e.preventDefault();
+    
+    // Regra rigorosa: Não fazer curadoria de livros já enviados (bloqueia duplicatas)
+    const livroDuplicado = livros.some(
+      l => l.titulo.toLowerCase() === formLivro.titulo.toLowerCase() && l.id !== formLivro.id
+    );
+
+    if (livroDuplicado) {
+      alert("ATENÇÃO: Este livro já passou por curadoria e está no sistema. Você não faz curadoria de títulos repetidos.");
+      return;
+    }
+
+    if (formLivro.id) {
+      setLivros(livros.map(l => l.id === formLivro.id ? formLivro : l));
+    } else {
+      setLivros([{ ...formLivro, id: Date.now(), timestampCriacao: Date.now() }, ...livros]);
+    }
+    
+    fecharModal();
+  };
+
+  const editarLivro = (livro) => {
+    setFormLivro(livro);
+    setModalAberto(true);
+  };
+
+  const excluirLivro = (id) => {
+    setLivros(livros.filter(l => l.id !== id));
+  };
+
+  const alternarPostado = (id) => {
+    setLivros(livros.map(l => l.id === id ? { ...l, postado: !l.postado } : l));
+  };
+
+  const copiarTextoPostagem = (texto) => {
+    if(!texto) return;
+    navigator.clipboard.writeText(texto);
+    // Feedback visual simples poderia ir aqui
+  };
+
+  const fecharModal = () => {
+    setModalAberto(false);
+    setFormLivro({
+      id: null, titulo: '', autor: '', capa: 'Brochura', estado: '', 
+      valorSugerido: '', valorFinal: '', status: 'a_fazer', 
+      dataCuradoria: new Date().toISOString().split('T')[0],
+      textoPostagem: '', imagem: null, postado: false
+    });
+  };
+
+  const livrosFiltrados = useMemo(() => {
+    let filtrados = livros.filter(livro => {
+      const matchBusca = livro.titulo.toLowerCase().includes(buscaTexto.toLowerCase()) || 
+                         livro.autor.toLowerCase().includes(buscaTexto.toLowerCase());
+      const matchAba = abaAtiva === 'todas' || livro.status === abaAtiva;
+      const matchData = buscaData === '' || livro.dataCuradoria === buscaData;
+      
+      return matchBusca && matchAba && matchData;
+    });
+
+    // Ordenação
+    filtrados.sort((a, b) => {
+      if (ordenacao === 'mais_recentes') {
+        return b.timestampCriacao - a.timestampCriacao;
+      } else {
+        return a.timestampCriacao - b.timestampCriacao;
+      }
+    });
+
+    return filtrados;
+  }, [livros, buscaTexto, abaAtiva, buscaData, ordenacao]);
+
+  const getStatusCor = (status) => {
+    switch(status) {
+      case 'a_fazer': return 'text-orange-500 bg-orange-50 border-orange-100';
+      case 'com_valor_final': return 'text-emerald-600 bg-emerald-50 border-emerald-100';
+      case 'falta_valor_final': return 'text-rose-500 bg-rose-50 border-rose-100';
+      default: return 'text-gray-500 bg-gray-50 border-gray-100';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch(status) {
+      case 'a_fazer': return 'A FAZER';
+      case 'com_valor_final': return 'COM VALOR FINAL';
+      case 'falta_valor_final': return 'FALTA VALOR FINAL';
+      default: return 'DESCONHECIDO';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8f7f4] flex flex-col md:flex-row font-sans text-slate-800 p-4 gap-6">
+      
+      {/* Sidebar / Menu Esquerdo */}
+      <aside className="w-full md:w-64 flex flex-col gap-2">
+        <div className="bg-white rounded-[2rem] p-6 shadow-sm mb-4 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-tr from-amber-200 to-orange-400 rounded-full shadow-inner flex items-center justify-center">
+            <span className="text-white font-bold text-xl">C</span>
+          </div>
+          <h1 className="font-bold text-lg text-slate-700">Caramelos</h1>
+        </div>
+
+        <nav className="flex flex-col gap-2 bg-white p-4 rounded-[2rem] shadow-sm">
+          {[
+            { id: 'todas', label: 'Todas as Curadorias' },
+            { id: 'a_fazer', label: 'A Fazer' },
+            { id: 'com_valor_final', label: 'Com Valor Final' },
+            { id: 'falta_valor_final', label: 'Falta Valor Final' }
+          ].map((aba) => (
+            <button
+              key={aba.id}
+              onClick={() => setAbaAtiva(aba.id)}
+              className={`text-left px-5 py-3 rounded-full font-medium transition-all ${
+                abaAtiva === aba.id 
+                  ? 'bg-gradient-to-r from-orange-100 to-amber-50 text-orange-700 shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+              }`}
+            >
+              {aba.label}
+            </button>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Conteúdo Central */}
+      <main className="flex-1 flex flex-col gap-6">
+        
+        {/* Barra de Topo */}
+        <div className="flex flex-col xl:flex-row gap-4 justify-between items-center bg-white p-4 rounded-full shadow-sm px-6">
+          <div className="flex w-full xl:w-auto items-center gap-4">
+            <div className="relative w-full xl:w-80">
+              <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="Buscar livros..." 
+                value={buscaTexto}
+                onChange={(e) => setBuscaTexto(e.target.value)}
+                className="w-full bg-[#f8f7f4] border-none rounded-full py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-orange-200 outline-none"
+              />
+            </div>
+            
+            {/* Filtro de Data */}
+            <div className="relative flex items-center">
+              <input 
+                type="date" 
+                value={buscaData}
+                onChange={(e) => setBuscaData(e.target.value)}
+                className="bg-[#f8f7f4] border-none rounded-full py-3 px-4 text-sm focus:ring-2 focus:ring-orange-200 outline-none text-slate-600 cursor-pointer"
+                title="Filtrar por data exata"
+              />
+              {buscaData && (
+                <button onClick={() => setBuscaData('')} className="absolute right-3 text-slate-400 hover:text-rose-500">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Ordenação */}
+            <button 
+              onClick={() => setOrdenacao(ord => ord === 'mais_recentes' ? 'mais_antigos' : 'mais_recentes')}
+              className="flex items-center gap-2 bg-[#f8f7f4] px-4 py-3 rounded-full text-sm font-medium text-slate-600 hover:bg-[#f0eee9] transition-colors"
+              title="Mudar Ordem"
+            >
+              {ordenacao === 'mais_recentes' ? <SortDesc className="w-4 h-4"/> : <SortAsc className="w-4 h-4"/>}
+            </button>
+          </div>
+
+          <button 
+            onClick={() => setModalAberto(true)}
+            className="w-full xl:w-auto bg-gradient-to-r from-purple-500 via-rose-400 to-orange-400 text-white px-8 py-3 rounded-full font-bold shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" /> Nova Curadoria
+          </button>
+        </div>
+
+        {/* Grade de Livros */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {livrosFiltrados.length === 0 ? (
+            <div className="col-span-full text-center py-20 text-slate-400">
+              <p>Nenhum livro encontrado com esses filtros.</p>
+            </div>
+          ) : (
+            livrosFiltrados.map((livro) => (
+              <div key={livro.id} className="bg-white rounded-[2rem] p-5 shadow-sm border border-transparent hover:border-orange-100 transition-all flex flex-col gap-5 relative group">
+                
+                {/* Linha 1: Foto e Títulos */}
+                <div className="flex gap-4 items-start">
+                  <div 
+                    className="w-24 h-32 bg-[#f8f7f4] rounded-2xl overflow-hidden flex-shrink-0 cursor-pointer border border-slate-100 flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity"
+                    onClick={() => livro.imagem && setImagemAmpliada(livro.imagem)}
+                  >
+                    {livro.imagem ? (
+                      <img src={livro.imagem} alt="Capa" className="w-full h-full object-cover" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-slate-300" />
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col items-start gap-2 pt-1">
+                    <h3 className="font-bold text-slate-800 leading-tight text-lg max-w-[160px] truncate" title={livro.titulo}>
+                      {livro.titulo}
+                    </h3>
+                    <p className="text-slate-500 text-sm font-medium">{livro.autor}</p>
+                    <div className="flex flex-col items-start gap-1.5 mt-1">
+                      <span className={`text-[10px] font-bold px-3 py-1 rounded-full border ${getStatusCor(livro.status)}`}>
+                        {getStatusLabel(livro.status)}
+                      </span>
+                      <span className="text-[11px] font-medium px-3 py-1 bg-[#f5f5f0] text-slate-500 rounded-full">
+                        {livro.dataCuradoria.split('-').reverse().join('/')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha 2: Caixa bege de informações */}
+                <div className="bg-[#fcfbf9] rounded-[1.5rem] p-4 flex justify-between border border-[#f0eee9]">
+                  <div className="flex flex-col gap-1 text-sm text-slate-600 justify-center">
+                    <p><span className="font-semibold text-slate-400">Capa:</span> {livro.capa}</p>
+                    <p><span className="font-semibold text-slate-400">Estado:</span> {livro.estado}</p>
+                  </div>
+                  
+                  <div className="w-px bg-slate-200 mx-2"></div>
+                  
+                  <div className="flex flex-col gap-2 text-right justify-center min-w-[100px]">
+                    <div>
+                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wide">Valor Sugerido</p>
+                      <p className="font-bold text-slate-700">{livro.valorSugerido || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Valor Final</p>
+                      <p className="font-bold text-slate-700">{livro.valorFinal || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha 3: Controles Inferiores */}
+                <div className="flex items-center justify-between pt-1">
+                  <button 
+                    onClick={() => alternarPostado(livro.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all ${
+                      livro.postado 
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-600' 
+                        : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {livro.postado ? <CheckSquare className="w-5 h-5" /> : <Square className="w-5 h-5" />}
+                    <span className="text-xs font-bold tracking-wide">MARCAR POSTADO</span>
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {livro.textoPostagem && (
+                      <button onClick={() => copiarTextoPostagem(livro.textoPostagem)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-200 transition-colors bg-white">
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => editarLivro(livro)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-200 transition-colors bg-white">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => excluirLivro(livro.id)} className="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-colors bg-white">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            ))
+          )}
+        </div>
+      </main>
+
+      {/* Modal de Ampliar Imagem */}
+      {imagemAmpliada && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 cursor-pointer" onClick={() => setImagemAmpliada(null)}>
+          <button className="absolute top-6 right-6 text-white bg-slate-800/50 p-2 rounded-full hover:bg-rose-500 transition-colors">
+            <X className="w-8 h-8" />
+          </button>
+          <img 
+            src={imagemAmpliada} 
+            alt="Capa Ampliada" 
+            className="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl cursor-default"
+            onClick={(e) => e.stopPropagation()} 
+          />
+        </div>
+      )}
+
+      {/* Modal de Cadastro / Edição */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-end">
+          <div className="bg-[#fcfbf9] w-full md:w-[500px] h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            
+            <div className="p-6 border-b border-[#f0eee9] flex justify-between items-center bg-white">
+              <h2 className="text-xl font-bold text-slate-800">{formLivro.id ? 'Editar Curadoria' : 'Nova Curadoria'}</h2>
+              <button onClick={fecharModal} className="p-2 text-slate-400 hover:bg-slate-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={salvarLivro} className="p-6 overflow-y-auto flex-1 space-y-5">
+              
+              <div className="flex gap-4 items-end">
+                <div className="w-32 h-40 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center overflow-hidden relative group">
+                  {formLivro.imagem ? (
+                    <img src={formLivro.imagem} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center p-2 text-slate-400">
+                      <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
+                      <span className="text-[10px] font-medium">Add Foto</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" onChange={lidarComUploadImagem} className="absolute inset-0 opacity-0 cursor-pointer" />
+                </div>
+                
+                <div className="flex-1 space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Título</label>
+                    <input required type="text" value={formLivro.titulo} onChange={e => setFormLivro({...formLivro, titulo: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Autor</label>
+                    <input required type="text" value={formLivro.autor} onChange={e => setFormLivro({...formLivro, autor: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Capa</label>
+                  <select value={formLivro.capa} onChange={e => setFormLivro({...formLivro, capa: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm">
+                    <option>Brochura</option>
+                    <option>Capa Dura</option>
+                    <option>Espiral</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Estado</label>
+                  <input type="text" value={formLivro.estado} onChange={e => setFormLivro({...formLivro, estado: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Valor Sugerido</label>
+                  <input type="text" value={formLivro.valorSugerido} onChange={e => setFormLivro({...formLivro, valorSugerido: e.target.value})} placeholder="R$ 0,00" className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Valor Final</label>
+                  <input type="text" value={formLivro.valorFinal} onChange={e => setFormLivro({...formLivro, valorFinal: e.target.value})} placeholder="R$ 0,00" className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Data Curadoria</label>
+                  <input type="date" value={formLivro.dataCuradoria} onChange={e => setFormLivro({...formLivro, dataCuradoria: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm text-slate-600" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
+                  <select value={formLivro.status} onChange={e => setFormLivro({...formLivro, status: e.target.value})} className="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm font-medium">
+                    <option value="a_fazer">A Fazer</option>
+                    <option value="com_valor_final">Com Valor Final</option>
+                    <option value="falta_valor_final">Falta Valor Final</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1 flex items-center justify-between">
+                  Rascunho de Postagem
+                  {formLivro.textoPostagem && (
+                    <button type="button" onClick={() => copiarTextoPostagem(formLivro.textoPostagem)} className="text-indigo-500 hover:text-indigo-700 flex items-center gap-1">
+                      <Copy className="w-3 h-3" /> Copiar
+                    </button>
+                  )}
+                </label>
+                <textarea 
+                  rows="4" 
+                  value={formLivro.textoPostagem} 
+                  onChange={e => setFormLivro({...formLivro, textoPostagem: e.target.value})} 
+                  placeholder="Escreva aqui o texto que será usado para divulgar o livro..."
+                  className="w-full mt-2 bg-white border border-slate-200 rounded-2xl p-4 focus:outline-none focus:ring-2 focus:ring-orange-200 text-sm resize-none"
+                />
+              </div>
+
+              <button type="submit" className="w-full bg-slate-800 text-white py-4 rounded-full font-bold hover:bg-slate-700 transition-colors mt-4">
+                Salvar Curadoria
+              </button>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}
