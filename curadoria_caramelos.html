@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curadoria - Sebo Caramelos</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons via CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- CSS Customizado para Scrollbar -->
+  <style>
+    body {
+      background-color: #f8f7f4;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    /* Scrollbar Customizada */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    
+    /* Utilitários extras */
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row text-slate-800 p-4 gap-6 overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside class="w-full md:w-64 flex flex-col gap-2 flex-shrink-0 h-full overflow-y-auto hide-scrollbar">
+    <!-- Logotipo -->
+    <div class="bg-white rounded-[2rem] p-6 shadow-sm mb-4 flex items-center gap-3 border border-transparent">
+      <div class="w-10 h-10 bg-gradient-to-tr from-amber-200 to-orange-400 rounded-full shadow-inner flex items-center justify-center">
+        <span class="text-white font-bold text-xl">C</span>
+      </div>
+      <h1 class="font-bold text-lg text-slate-700 tracking-tight">Caramelos</h1>
+    </div>
+
+    <!-- Navegação (Abas) -->
+    <nav class="flex flex-col gap-2 bg-white p-4 rounded-[2rem] shadow-sm" id="menu-abas">
+      <button onclick="mudarAba('todas')" id="aba-todas" class="aba-btn text-left px-5 py-3 rounded-full font-bold transition-all bg-gradient-to-r from-orange-100 to-amber-50 text-orange-700 shadow-sm">
+        Todas as Curadorias
+      </button>
+      <button onclick="mudarAba('a_fazer')" id="aba-a_fazer" class="aba-btn text-left px-5 py-3 rounded-full font-bold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-700">
+        A Fazer
+      </button>
+      <button onclick="mudarAba('com_valor_final')" id="aba-com_valor_final" class="aba-btn text-left px-5 py-3 rounded-full font-bold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-700">
+        Com Valor Final
+      </button>
+      <button onclick="mudarAba('falta_valor_final')" id="aba-falta_valor_final" class="aba-btn text-left px-5 py-3 rounded-full font-bold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-700">
+        Falta Valor Final
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Conteúdo Central -->
+  <main class="flex-1 flex flex-col gap-6 overflow-hidden h-[calc(100vh-2rem)]">
+    
+    <!-- Barra de Topo (Busca, Filtros, Adicionar) -->
+    <div class="flex flex-col xl:flex-row gap-4 justify-between items-center bg-white p-4 rounded-full shadow-sm px-6 flex-shrink-0">
+      <div class="flex flex-col sm:flex-row w-full xl:w-auto items-center gap-4">
+        
+        <!-- Pesquisa por Texto -->
+        <div class="relative w-full sm:w-80">
+          <i data-lucide="search" class="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+          <input type="text" id="busca-texto" placeholder="Buscar livros ou autores..." oninput="renderizarLivros()" class="w-full bg-[#f8f7f4] border-none rounded-full py-3 pl-12 pr-4 text-sm font-medium focus:ring-2 focus:ring-orange-200 outline-none placeholder-slate-400">
+        </div>
+        
+        <!-- Pesquisa por Data -->
+        <div class="relative flex items-center w-full sm:w-auto">
+          <input type="date" id="busca-data" onchange="renderizarLivros()" class="w-full sm:w-auto bg-[#f8f7f4] border-none rounded-full py-3 px-4 text-sm font-medium focus:ring-2 focus:ring-orange-200 outline-none text-slate-600 cursor-pointer" title="Filtrar por data exata">
+          <button onclick="limparData()" class="absolute right-3 text-slate-400 hover:text-rose-500 hidden" id="btn-limpar-data">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Botão de Ordenação -->
+        <button onclick="alternarOrdem()" class="flex w-full sm:w-auto justify-center items-center gap-2 bg-[#f8f7f4] px-4 py-3 rounded-full text-sm font-medium text-slate-600 hover:bg-[#f0eee9] transition-colors" title="Mudar Ordem">
+          <i data-lucide="arrow-down-z-a" id="icone-ordem" class="w-4 h-4"></i>
+          <span class="sm:hidden">Ordenar</span>
+        </button>
+      </div>
+
+      <!-- Botão Nova Curadoria -->
+      <button onclick="abrirModal()" class="w-full xl:w-auto bg-gradient-to-r from-purple-500 via-rose-400 to-orange-400 text-white px-8 py-3 rounded-full font-bold shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+        <i data-lucide="plus" class="w-5 h-5"></i> Nova Curadoria
+      </button>
+    </div>
+
+    <!-- Grade de Livros (Scrollable) -->
+    <div id="grid-livros" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 overflow-y-auto pb-10 pr-2">
+      <!-- Os livros serão injetados aqui via JavaScript -->
+    </div>
+  </main>
+
+  <!-- Modal de Ampliar Imagem -->
+  <div id="modal-imagem" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 cursor-pointer hidden opacity-0 transition-opacity duration-300" onclick="fecharImagem()">
+    <button class="absolute top-6 right-6 text-white bg-slate-800/50 p-2 rounded-full hover:bg-rose-500 transition-colors z-[70]" onclick="fecharImagem()">
+      <i data-lucide="x" class="w-8 h-8"></i>
+    </button>
+    <img id="img-ampliada" src="" alt="Capa Ampliada" class="max-w-full max-h-[90vh] object-contain rounded-2xl shadow-2xl cursor-default" onclick="event.stopPropagation()">
+  </div>
+
+  <!-- Modal de Formulário (Cadastro / Edição) -->
+  <div id="modal-form" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-end hidden opacity-0 transition-opacity duration-300">
+    <!-- Painel Lateral -->
+    <div id="modal-panel" class="bg-[#fcfbf9] w-full md:w-[500px] h-full shadow-2xl flex flex-col translate-x-full transition-transform duration-300 relative">
+      
+      <!-- Cabeçalho do Modal -->
+      <div class="p-6 border-b border-[#f0eee9] flex justify-between items-center bg-white flex-shrink-0">
+        <h2 id="modal-titulo" class="text-xl font-bold text-slate-800">Nova Curadoria</h2>
+        <button onclick="fecharModal()" class="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Formulário -->
+      <form id="form-livro" onsubmit="salvarLivro(event)" class="p-6 overflow-y-auto flex-1 space-y-5">
+        <input type="hidden" id="form-id">
+        <input type="hidden" id="form-postado" value="false">
+        
+        <!-- Upload e Títulos -->
+        <div class="flex gap-4 items-end">
+          <div class="w-32 h-40 bg-white border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center overflow-hidden relative group transition-colors hover:border-orange-300 cursor-pointer">
+            <img id="form-preview-img" src="" class="w-full h-full object-cover hidden">
+            <div id="form-placeholder-img" class="text-center p-2 text-slate-400">
+              <i data-lucide="image" class="w-8 h-8 mx-auto mb-1 opacity-50 group-hover:text-orange-400 transition-colors"></i>
+              <span class="text-[10px] font-bold uppercase tracking-wider group-hover:text-orange-500 transition-colors">Add Foto</span>
+            </div>
+            <input type="file" id="form-imagem-upload" accept="image/*" onchange="carregarImagem(event)" class="absolute inset-0 opacity-0 cursor-pointer">
+            <input type="hidden" id="form-imagem-base64">
+          </div>
+          
+          <div class="flex-1 space-y-4">
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Título do Livro</label>
+              <input required type="text" id="form-titulo" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-700 transition-all">
+            </div>
+            <div>
+              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Autor</label>
+              <input required type="text" id="form-autor" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-700 transition-all">
+            </div>
+          </div>
+        </div>
+
+        <!-- Detalhes e Valores -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Capa</label>
+            <select id="form-capa" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-600">
+              <option value="Brochura">Brochura</option>
+              <option value="Capa Dura">Capa Dura</option>
+              <option value="Espiral">Espiral</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Estado</label>
+            <input type="text" id="form-estado" placeholder="Ex: Excelente" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-700 transition-all">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider ml-1">Valor Sugerido</label>
+            <input type="text" id="form-valorSugerido" placeholder="R$ 0,00" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 text-sm font-bold text-slate-700 transition-all">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider ml-1">Valor Final</label>
+            <input type="text" id="form-valorFinal" placeholder="R$ 0,00" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 text-sm font-bold text-slate-700 transition-all">
+          </div>
+        </div>
+
+        <!-- Datas e Status -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Data Curadoria</label>
+            <input type="date" required id="form-dataCuradoria" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-600 transition-all">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Status</label>
+            <select id="form-status" class="w-full mt-1 bg-white border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-bold text-slate-600">
+              <option value="a_fazer">A Fazer</option>
+              <option value="com_valor_final">Com Valor Final</option>
+              <option value="falta_valor_final">Falta Valor Final</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Rascunho -->
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1 flex items-center justify-between">
+            Rascunho de Postagem
+          </label>
+          <textarea id="form-textoPostagem" rows="4" placeholder="Rascunho para divulgação..." class="w-full mt-2 bg-white border border-slate-200 rounded-2xl p-4 focus:outline-none focus:border-orange-300 focus:ring-2 focus:ring-orange-100 text-sm font-medium text-slate-600 resize-none transition-all"></textarea>
+        </div>
+
+        <!-- Botão Salvar -->
+        <button type="submit" class="w-full bg-slate-800 text-white py-4 rounded-full font-bold hover:bg-slate-700 transition-colors shadow-md mt-6 flex items-center justify-center gap-2">
+          <i data-lucide="save" class="w-5 h-5"></i>
+          Salvar Curadoria
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Lógica da Aplicação -->
+  <script>
+    // Inicialização do Lucide Icons
+    lucide.createIcons();
+
+    // Estado da Aplicação
+    let livros = JSON.parse(localStorage.getItem('@seboCaramelos:livros')) || [];
+    let abaAtiva = 'todas';
+    let ordenacao = 'mais_recentes';
+
+    // Ao carregar a página
+    document.addEventListener('DOMContentLoaded', () => {
+        // Formata o input de data inicial para hoje
+        const hoje = new Date().toISOString().split('T')[0];
+        document.getElementById('form-dataCuradoria').value = hoje;
+        renderizarLivros();
+    });
+
+    // === GERENCIAMENTO DE ESTADO E RENDERIZAÇÃO === //
+
+    function salvarDados() {
+        localStorage.setItem('@seboCaramelos:livros', JSON.stringify(livros));
+        renderizarLivros();
+    }
+
+    function renderizarLivros() {
+        const grid = document.getElementById('grid-livros');
+        const termoBusca = document.getElementById('busca-texto').value.toLowerCase().trim();
+        const dataBusca = document.getElementById('busca-data').value;
+        
+        // Mostrar/ocultar botão de limpar data
+        const btnLimparData = document.getElementById('btn-limpar-data');
+        if(dataBusca) {
+            btnLimparData.classList.remove('hidden');
+        } else {
+            btnLimparData.classList.add('hidden');
+        }
+
+        // Filtros
+        let filtrados = livros.filter(livro => {
+            const titulo = (livro.titulo || '').toLowerCase();
+            const autor = (livro.autor || '').toLowerCase();
+            
+            const matchBusca = titulo.includes(termoBusca) || autor.includes(termoBusca);
+            const matchAba = abaAtiva === 'todas' || livro.status === abaAtiva;
+            const matchData = dataBusca === '' || livro.dataCuradoria === dataBusca;
+            
+            return matchBusca && matchAba && matchData;
+        });
+
+        // Ordenação
+        filtrados.sort((a, b) => {
+            if (ordenacao === 'mais_recentes') {
+                return b.timestampCriacao - a.timestampCriacao;
+            } else {
+                return a.timestampCriacao - b.timestampCriacao;
+            }
+        });
+
+        // Atualizar Ícone de Ordenação
+        const iconeOrdem = document.getElementById('icone-ordem');
+        if(ordenacao === 'mais_recentes') {
+            iconeOrdem.setAttribute('data-lucide', 'arrow-down-z-a');
+        } else {
+            iconeOrdem.setAttribute('data-lucide', 'arrow-down-a-z');
+        }
+
+        // Renderizar Grade
+        if (filtrados.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full flex flex-col items-center justify-center py-20 text-slate-400">
+                    <i data-lucide="book-x" class="w-16 h-16 mb-4 opacity-50"></i>
+                    <p class="font-medium text-lg">Nenhum livro encontrado.</p>
+                    <p class="text-sm opacity-70">Tente ajustar os filtros ou adicionar uma nova curadoria.</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        let html = '';
+        filtrados.forEach(livro => {
+            // Estilos condicionais de Status
+            let statusClasses = '';
+            let statusLabel = '';
+            
+            if (livro.status === 'a_fazer') {
+                statusClasses = 'text-orange-500 bg-orange-50 border-orange-100';
+                statusLabel = 'A FAZER';
+            } else if (livro.status === 'com_valor_final') {
+                statusClasses = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+                statusLabel = 'COM VALOR FINAL';
+            } else {
+                statusClasses = 'text-rose-500 bg-rose-50 border-rose-100';
+                statusLabel = 'FALTA VALOR FINAL';
+            }
+
+            // Formatação de Data
+            const partesData = livro.dataCuradoria ? livro.dataCuradoria.split('-') : [];
+            const dataFormatada = partesData.length === 3 ? `${partesData[2]}/${partesData[1]}/${partesData[0]}` : '--/--/----';
+            
+            // Estilos condicionais de Postado
+            const btnPostadoClasses = livro.postado 
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100' 
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50';
+            const iconePostado = livro.postado ? 'check-square' : 'square';
+
+            // Elemento de Imagem
+            const imagemHtml = livro.imagem 
+                ? `<img src="${livro.imagem}" alt="Capa" class="w-full h-full object-cover" />`
+                : `<i data-lucide="image" class="w-8 h-8 text-slate-300"></i>`;
+
+            html += `
+            <div class="bg-white rounded-[2.5rem] p-5 shadow-sm border border-transparent hover:border-orange-100 hover:shadow-md transition-all flex flex-col gap-5 relative group">
+                
+                <!-- Topo: Imagem + Info Principal -->
+                <div class="flex gap-4 items-start">
+                  <div onclick="abrirImagem('${livro.imagem || ''}')" class="w-[100px] h-[135px] bg-[#f8f7f4] rounded-2xl overflow-hidden flex-shrink-0 cursor-pointer border border-slate-100 flex items-center justify-center shadow-sm hover:opacity-80 transition-opacity">
+                    ${imagemHtml}
+                  </div>
+                  <div class="flex flex-col items-start gap-2 pt-1 overflow-hidden w-full">
+                    <h3 class="font-bold text-slate-800 leading-tight text-lg truncate w-full" title="${livro.titulo}">
+                        ${livro.titulo}
+                    </h3>
+                    <p class="text-slate-500 text-sm font-medium truncate w-full" title="${livro.autor}">${livro.autor}</p>
+                    
+                    <div class="flex flex-col items-start gap-1.5 mt-auto">
+                      <span class="text-[10px] font-bold px-3 py-1 rounded-full border ${statusClasses} tracking-wide">
+                        ${statusLabel}
+                      </span>
+                      <span class="text-[11px] font-bold px-3 py-1 bg-[#f5f5f0] text-slate-500 rounded-full tracking-wider flex items-center gap-1.5">
+                        <i data-lucide="calendar" class="w-3 h-3"></i> ${dataFormatada}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Meio: Caixa bege de detalhes e valores -->
+                <div class="bg-[#fcfbf9] rounded-[1.5rem] p-4 flex justify-between border border-[#f0eee9]">
+                  <div class="flex flex-col gap-1 text-sm text-slate-600 justify-center">
+                    <p class="truncate max-w-[120px]" title="${livro.capa}">
+                        <span class="font-bold text-slate-400">Capa:</span> <span class="font-medium">${livro.capa || '-'}</span>
+                    </p>
+                    <p class="truncate max-w-[120px]" title="${livro.estado}">
+                        <span class="font-bold text-slate-400">Estado:</span> <span class="font-medium">${livro.estado || '-'}</span>
+                    </p>
+                  </div>
+                  
+                  <div class="w-px bg-slate-200 mx-3"></div>
+                  
+                  <div class="flex flex-col gap-2 text-right justify-center min-w-[100px]">
+                    <div>
+                      <p class="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">Sugerido</p>
+                      <p class="font-bold text-slate-600 leading-none">${livro.valorSugerido || '-'}</p>
+                    </div>
+                    <div>
+                      <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-0.5">Final</p>
+                      <p class="font-bold text-slate-800 leading-none text-base">${livro.valorFinal || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Rodapé: Ações -->
+                <div class="flex items-center justify-between pt-1">
+                  <button onclick="alternarPostado('${livro.id}')" class="flex items-center gap-2 px-4 py-2.5 rounded-full border transition-all ${btnPostadoClasses}">
+                    <i data-lucide="${iconePostado}" class="w-4 h-4"></i>
+                    <span class="text-[11px] font-bold tracking-widest uppercase">Postado</span>
+                  </button>
+                  
+                  <div class="flex items-center gap-2">
+                    ${livro.textoPostagem 
+                        ? `<button onclick="copiarTexto('${livro.id}')" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-indigo-500 hover:border-indigo-200 hover:bg-indigo-50 transition-colors bg-white shadow-sm" title="Copiar Postagem"><i data-lucide="copy" class="w-4 h-4"></i></button>` 
+                        : ''}
+                    <button onclick="editarLivro('${livro.id}')" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-amber-500 hover:border-amber-200 hover:bg-amber-50 transition-colors bg-white shadow-sm" title="Editar Curadoria">
+                        <i data-lucide="edit-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="excluirLivro('${livro.id}')" class="w-10 h-10 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50 transition-colors bg-white shadow-sm" title="Excluir Curadoria">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+            </div>`;
+        });
+
+        grid.innerHTML = html;
+        lucide.createIcons(); // Recriar ícones para os novos elementos injetados
+    }
+
+    // === CONTROLES DE INTERFACE === //
+
+    function mudarAba(aba) {
+        abaAtiva = aba;
+        document.getElementById('busca-data').value = '';
+        
+        // Atualizar estilos visuais das abas
+        const botoes = ['todas', 'a_fazer', 'com_valor_final', 'falta_valor_final'];
+        botoes.forEach(id => {
+            const btn = document.getElementById(`aba-${id}`);
+            if (id === aba) {
+                btn.className = "aba-btn text-left px-5 py-3 rounded-full font-bold transition-all bg-gradient-to-r from-orange-100 to-amber-50 text-orange-700 shadow-sm";
+            } else {
+                btn.className = "aba-btn text-left px-5 py-3 rounded-full font-bold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-700";
+            }
+        });
+        
+        renderizarLivros();
+    }
+
+    function alternarOrdem() {
+        ordenacao = ordenacao === 'mais_recentes' ? 'mais_antigos' : 'mais_recentes';
+        renderizarLivros();
+    }
+
+    function limparData() {
+        document.getElementById('busca-data').value = '';
+        renderizarLivros();
+    }
+
+    // === LÓGICA DE CRUD E MODAL === //
+
+    function abrirModal(id = null) {
+        const modal = document.getElementById('modal-form');
+        const painel = document.getElementById('modal-panel');
+        
+        modal.classList.remove('hidden');
+        // Pequeno delay para a animação CSS de fade/slide
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+            painel.classList.remove('translate-x-full');
+        }, 10);
+        
+        if (id) {
+            // Modo Edição
+            const livro = livros.find(l => String(l.id) === String(id));
+            document.getElementById('modal-titulo').innerText = 'Editar Curadoria';
+            document.getElementById('form-id').value = livro.id;
+            document.getElementById('form-titulo').value = livro.titulo;
+            document.getElementById('form-autor').value = livro.autor;
+            document.getElementById('form-capa').value = livro.capa;
+            document.getElementById('form-estado').value = livro.estado;
+            document.getElementById('form-valorSugerido').value = livro.valorSugerido;
+            document.getElementById('form-valorFinal').value = livro.valorFinal;
+            document.getElementById('form-dataCuradoria').value = livro.dataCuradoria;
+            document.getElementById('form-status').value = livro.status;
+            document.getElementById('form-textoPostagem').value = livro.textoPostagem;
+            document.getElementById('form-postado').value = livro.postado;
+            document.getElementById('form-imagem-base64').value = livro.imagem || '';
+            
+            if(livro.imagem) {
+                document.getElementById('form-preview-img').src = livro.imagem;
+                document.getElementById('form-preview-img').classList.remove('hidden');
+                document.getElementById('form-placeholder-img').classList.add('hidden');
+            } else {
+                document.getElementById('form-preview-img').src = '';
+                document.getElementById('form-preview-img').classList.add('hidden');
+                document.getElementById('form-placeholder-img').classList.remove('hidden');
+            }
+        } else {
+            // Modo Novo
+            document.getElementById('form-livro').reset();
+            document.getElementById('modal-titulo').innerText = 'Nova Curadoria';
+            document.getElementById('form-id').value = '';
+            document.getElementById('form-imagem-base64').value = '';
+            document.getElementById('form-postado').value = 'false';
+            document.getElementById('form-preview-img').src = '';
+            document.getElementById('form-preview-img').classList.add('hidden');
+            document.getElementById('form-placeholder-img').classList.remove('hidden');
+            document.getElementById('form-dataCuradoria').value = new Date().toISOString().split('T')[0];
+        }
+    }
+
+    function fecharModal() {
+        const modal = document.getElementById('modal-form');
+        const painel = document.getElementById('modal-panel');
+        
+        modal.classList.add('opacity-0');
+        painel.classList.add('translate-x-full');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300); // Tempo igual ao duration-300 do tailwind
+    }
+
+    function carregarImagem(event) {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const base64 = e.target.result;
+                document.getElementById('form-imagem-base64').value = base64;
+                document.getElementById('form-preview-img').src = base64;
+                document.getElementById('form-preview-img').classList.remove('hidden');
+                document.getElementById('form-placeholder-img').classList.add('hidden');
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function salvarLivro(event) {
+        event.preventDefault();
+        
+        const id = document.getElementById('form-id').value;
+        const titulo = document.getElementById('form-titulo').value.trim();
+        
+        // REGRA CRÍTICA: Impedir títulos duplicados (case-insensitive)
+        const tituloMinusculo = titulo.toLowerCase();
+        const livroDuplicado = livros.some(l => 
+            l.titulo.trim().toLowerCase() === tituloMinusculo && String(l.id) !== String(id)
+        );
+        
+        if (livroDuplicado) {
+            alert("⚠️ ATENÇÃO: Um livro com este mesmo título já foi cadastrado no sistema.\n\nPor favor, edite o livro existente ou verifique se não está duplicando a curadoria.");
+            return; // Interrompe o salvamento
+        }
+
+        const novoLivro = {
+            id: id ? id : Date.now().toString(),
+            timestampCriacao: id ? livros.find(l=>l.id===id).timestampCriacao : Date.now(),
+            titulo: titulo,
+            autor: document.getElementById('form-autor').value.trim(),
+            capa: document.getElementById('form-capa').value,
+            estado: document.getElementById('form-estado').value.trim(),
+            valorSugerido: document.getElementById('form-valorSugerido').value.trim(),
+            valorFinal: document.getElementById('form-valorFinal').value.trim(),
+            dataCuradoria: document.getElementById('form-dataCuradoria').value,
+            status: document.getElementById('form-status').value,
+            textoPostagem: document.getElementById('form-textoPostagem').value.trim(),
+            postado: document.getElementById('form-postado').value === 'true',
+            imagem: document.getElementById('form-imagem-base64').value
+        };
+
+        if (id) {
+            // Atualizar existente
+            livros = livros.map(l => String(l.id) === String(id) ? novoLivro : l);
+        } else {
+            // Inserir novo no topo
+            livros.unshift(novoLivro);
+        }
+
+        salvarDados();
+        fecharModal();
+    }
+
+    function excluirLivro(id) {
+        if(confirm("Tem certeza que deseja apagar permanentemente esta curadoria?")) {
+            livros = livros.filter(l => String(l.id) !== String(id));
+            salvarDados();
+        }
+    }
+
+    function editarLivro(id) {
+        abrirModal(id);
+    }
+
+    function alternarPostado(id) {
+        livros = livros.map(l => {
+            if(String(l.id) === String(id)) {
+                return { ...l, postado: !l.postado };
+            }
+            return l;
+        });
+        salvarDados();
+    }
+
+    function copiarTexto(id) {
+        const livro = livros.find(l => String(l.id) === String(id));
+        if(livro && livro.textoPostagem) {
+            navigator.clipboard.writeText(livro.textoPostagem).then(() => {
+                alert("Rascunho copiado para a área de transferência!");
+            }).catch(err => {
+                console.error("Falha ao copiar texto: ", err);
+            });
+        }
+    }
+
+    // === LÓGICA DE AMPLIAÇÃO DE IMAGEM === //
+
+    function abrirImagem(base64) {
+        if(!base64) return;
+        const modal = document.getElementById('modal-imagem');
+        document.getElementById('img-ampliada').src = base64;
+        
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            modal.classList.remove('opacity-0');
+        }, 10);
+    }
+
+    function fecharImagem() {
+        const modal = document.getElementById('modal-imagem');
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+  </script>
+</body>
+</html>
